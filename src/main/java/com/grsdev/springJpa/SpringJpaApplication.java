@@ -7,10 +7,14 @@ import javax.persistence.Entity;
 import javax.persistence.EntityManager;
 import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.PersistenceContext;
+import javax.persistence.Query;
+import javax.persistence.SequenceGenerator;
+import javax.persistence.Table;
+import javax.persistence.Transient;
 
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -29,15 +33,34 @@ public class SpringJpaApplication {
 	}
 	
 	@Bean
-	public CommandLineRunner commandLineRunner(TopicRepository topicRepo) {
+	public CommandLineRunner commandLineRunner(TopicRepository topicRepo, CourseRepository courseRepo) {
 		
 		CommandLineRunner clr = null;
 	
 		clr = (a)->{
 			
-			topicRepo.save(new Topic("java", "java", "description",1.2D));
+			Topic topic = new Topic("java", "java", "description",1.2D);
+			topic.setId(222L);
+			Topic topic2 = topicRepo.save(topic);
+			out.println(">>> topic saved with details : "+topic2);
+			Course course = new Course("Java Fundamentals", "Java Fundamentals", 210, topic2);
 			
-			out.println(topicRepo.findAll());
+			courseRepo.save(course);
+			
+			course = courseRepo.findById(1L).get();
+			
+			out.println(">>> course : "+ course.getId());
+//			out.println(">>> course.topic : "+course.getTopic());
+			
+			
+			Query query = em.createNativeQuery("select * from course where id=1");
+			
+			Object result = query.getSingleResult();
+			
+			Object array []=(Object []) result;
+			
+			for(int i=0; i < array.length; i++)
+				out.printf("%d : %s", i,array[i]);
 		};
 		
 		return clr;
@@ -45,10 +68,12 @@ public class SpringJpaApplication {
 }
 
 @Entity
+@Table(name="topic")
+@SequenceGenerator(name="TopicSeqGen",sequenceName="topic_seq_gen")
 class Topic{
 	
 	@Id
-	@GeneratedValue
+	@GeneratedValue(strategy=GenerationType.SEQUENCE,generator="TopicSeqGen")
 	private Long id;
 	
 	private String name;
@@ -120,7 +145,8 @@ interface TopicRepository extends JpaRepository<Topic, Long>{
 class Course {
 	
 	@Id
-	@GeneratedValue
+	@GeneratedValue(strategy=GenerationType.SEQUENCE,generator="CourseSeqGen")
+	@SequenceGenerator(name="CourseSeqGen",sequenceName="course_seq_gen")
 	private Long id;
 	
 	private String code;
@@ -130,10 +156,11 @@ class Course {
 	private float fee;
 	
 	@ManyToOne(fetch=FetchType.LAZY)
-	@JoinColumn(nullable=false,name="topic_id")
 	private Topic topic;
 	
-	
+	public Course() {
+		
+	}
 
 	public Course(String code, String name, float fee, Topic topic) {
 		super();
@@ -187,5 +214,9 @@ class Course {
 	public String toString() {
 		return "Course [id=" + id + ", code=" + code + ", name=" + name + ", fee=" + fee + ", topic=" + topic + "]";
 	}
+	
+}
+
+interface CourseRepository extends JpaRepository<Course,Long>{
 	
 }
